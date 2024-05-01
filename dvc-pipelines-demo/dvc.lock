@@ -1,0 +1,180 @@
+schema: '2.0'
+stages:
+  data_prepare:
+    cmd: python -m src.stages.data_prepare --config=params.yaml
+    deps:
+    - path: src/stages/data_prepare.py
+      hash: md5
+      md5: 98b278331a28466542c5feb95302b31e
+      size: 981
+    params:
+      params.yaml:
+        base:
+          random_state: 42
+          log_level: INFO
+        data_load:
+          dataset_csv: data/raw/penguins.csv
+          dataset_prepare: data/processed/prepare_penguins.csv
+    outs:
+    - path: data/processed/prepare_penguins.csv
+      hash: md5
+      md5: 50fa233545ec935e0b908b02ed005679
+      size: 16620
+  featurize:
+    cmd: python -m src.stages.featurize --config=params.yaml
+    deps:
+    - path: data/processed/prepare_penguins.csv
+      hash: md5
+      md5: 50fa233545ec935e0b908b02ed005679
+      size: 16620
+    - path: src/stages/featurize.py
+      hash: md5
+      md5: 074fcd6a2e4cb471a6e7f3e729cf1168
+      size: 1912
+    params:
+      params.yaml:
+        base:
+          random_state: 42
+          log_level: INFO
+        data_load:
+          dataset_csv: data/raw/penguins.csv
+          dataset_prepare: data/processed/prepare_penguins.csv
+        featurize:
+          features_path: data/processed/featured_penguins.csv
+          target_column: species
+          categorical_features:
+          - sex
+          cols_to_drop:
+          - island
+          - year
+          - bill_length_mm
+    outs:
+    - path: data/processed/featured_penguins.csv
+      hash: md5
+      md5: 646e6cc74f0ff5df7e0d5547b35c16a9
+      size: 11603
+  data_split:
+    cmd: python -m src.stages.data_split --config=params.yaml
+    deps:
+    - path: data/processed/featured_penguins.csv
+      hash: md5
+      md5: 646e6cc74f0ff5df7e0d5547b35c16a9
+      size: 11603
+    - path: src/stages/data_split.py
+      hash: md5
+      md5: f0d82b1ad774a3e4ae2506d225a94cbd
+      size: 1342
+    params:
+      params.yaml:
+        base:
+          random_state: 42
+          log_level: INFO
+        data_load:
+          dataset_csv: data/raw/penguins.csv
+          dataset_prepare: data/processed/prepare_penguins.csv
+        data_split:
+          test_size: 0.2
+          trainset_path: data/processed/train_penguins.csv
+          testset_path: data/processed/test_penguins.csv
+        featurize:
+          features_path: data/processed/featured_penguins.csv
+          target_column: species
+          categorical_features:
+          - sex
+          cols_to_drop:
+          - island
+          - year
+          - bill_length_mm
+    outs:
+    - path: data/processed/test_penguins.csv
+      hash: md5
+      md5: 440bef57525a2eea0e29e88e2afb49c9
+      size: 2409
+    - path: data/processed/train_penguins.csv
+      hash: md5
+      md5: 00b09addcc90fe207599cce37ad2f957
+      size: 9271
+  train:
+    cmd: python -m src.stages.train --config=params.yaml
+    deps:
+    - path: data/processed/train_penguins.csv
+      hash: md5
+      md5: 00b09addcc90fe207599cce37ad2f957
+      size: 9271
+    - path: src/stages/train.py
+      hash: md5
+      md5: b53de68c9440d7260420b7d6ee9db4a7
+      size: 1788
+    params:
+      params.yaml:
+        base:
+          random_state: 42
+          log_level: INFO
+        data_split.trainset_path: data/processed/train_penguins.csv
+        featurize.target_column: species
+        train:
+          cv: 3
+          estimator_name: rdm_forest
+          estimators:
+            logreg:
+              param_grid:
+                C:
+                - 0.005
+                max_iter:
+                - 100
+                solver:
+                - lbfgs
+                multi_class:
+                - multinomial
+            svm:
+              param_grid:
+                C:
+                - 0.1
+                - 1.0
+                kernel:
+                - rbf
+                - linear
+                gamma:
+                - scale
+                degree:
+                - 3
+                - 5
+            rdm_forest:
+              param_grid:
+          model_path: models/model.joblib
+    outs:
+    - path: models/model.joblib
+      hash: md5
+      md5: 8d9c647621340663d38c6e6479d27f4e
+      size: 827393
+  evaluate:
+    cmd: python -m src.stages.evaluate --config=params.yaml
+    deps:
+    - path: data/processed/test_penguins.csv
+      hash: md5
+      md5: 440bef57525a2eea0e29e88e2afb49c9
+      size: 2409
+    - path: models/model.joblib
+      hash: md5
+      md5: 8d9c647621340663d38c6e6479d27f4e
+      size: 827393
+    - path: src/stages/evaluate.py
+      hash: md5
+      md5: 67089268555e06bbfad5f3eeefc05ebb
+      size: 2525
+    params:
+      params.yaml:
+        base:
+          random_state: 42
+          log_level: INFO
+        data_split.testset_path: data/processed/test_penguins.csv
+        evaluate:
+          reports_dir: reports
+          metrics_file: metrics.json
+          confusion_matrix_image: confusion_matrix.png
+        featurize.target_column: species
+    outs:
+    - path: reports/metrics.json
+      hash: md5
+      md5: c177f3dabf1b9696dc8093b002bbdc6f
+      size: 32
