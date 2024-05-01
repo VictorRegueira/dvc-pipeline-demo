@@ -1,0 +1,4 @@
+artifacts:
+  model:
+    path: models/model.joblib
+    type: model
